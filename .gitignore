@@ -1,0 +1,10 @@
+﻿# Ignore Virtual Environment (Saves 500MB+ of upload space)
+.venv/
+venv/
+
+# Ignore Python Cache files
+__pycache__/
+*.pyc
+
+# Ignore Secret API Keys (Crucial for when we add OpenAI/Gemini keys later!)
+.env
