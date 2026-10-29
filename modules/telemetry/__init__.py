@@ -1,9 +1,8 @@
 ﻿"""
-Package: Unified Hardware Telemetry Facade (modules/telemetry/__init__.py)
-Purpose: Connects memory_guard (Step 2), ram_limit_guard (Step 3), and 
-         execution_logger (Step 4) into a single clean import interface.
-         Provides @auto_log_telemetry so any pipeline function automatically 
-         records its time and RAM complexity into the bounded ring buffer.
+Package: Complete Phase 1 Hardware Telemetry Facade (modules/telemetry/__init__.py)
+Purpose: Exposes all Phase 1 telemetry sensors, circuit breakers, ring loggers,
+         GC reclaimers, Big-O estimators, dashboards, and exporters through a 
+         single unified package interface (`from modules.telemetry import ...`).
 """
 
 from functools import wraps
@@ -15,24 +14,13 @@ from modules.telemetry.ram_limit_guard import (
     MemoryBudgetExceededError
 )
 from modules.telemetry.execution_logger import TelemetryRingLogger
+from modules.telemetry.gc_reclaimer import reclaim_memory
+from modules.telemetry.complexity_estimator import estimate_big_o
 
-
-# -----------------------------------------------------------------------------
-# BLOCK 1: GLOBAL SINGLETON RING-BUFFER LOGGER
-# Why this block started: Creates one shared 50-slot ring buffer across the 
-# entire application so the 'Deep Learn' tab can read telemetry from all 6 modules.
-# Space Complexity: Strictly bounded O(1) — Capped at 50 entries maximum.
-# -----------------------------------------------------------------------------
+# Shared 50-slot bounded O(1) singleton ring buffer across all modules
 GLOBAL_TELEMETRY_LOGGER = TelemetryRingLogger(max_records=50)
 
 
-# -----------------------------------------------------------------------------
-# BLOCK 2: AUTO-LOGGING TELEMETRY DECORATOR
-# Why this block started: Combines Step 2 (@profile_execution) and Step 4 
-# (TelemetryRingLogger) so decorated functions automatically push their metrics 
-# into GLOBAL_TELEMETRY_LOGGER without manual logging code.
-# Time Complexity: O(1) overhead.
-# -----------------------------------------------------------------------------
 def auto_log_telemetry(module_name: str = "pipeline") -> Callable:
     """
     Decorator factory that profiles a function's execution time and peak RAM,
@@ -55,12 +43,6 @@ def auto_log_telemetry(module_name: str = "pipeline") -> Callable:
     return decorator
 
 
-# -----------------------------------------------------------------------------
-# BLOCK 3: LOGGED RAM CIRCUIT BREAKER HELPER
-# Why this block started: Wraps Step 3 (enforce_ram_budget) so that both 
-# APPROVED and BLOCKED pre-execution payload checks are also recorded in the 
-# live telemetry log for full visibility in the UI.
-# -----------------------------------------------------------------------------
 def check_and_log_ram_budget(
     payload_bytes: int,
     module_name: str = "ingestion",
@@ -95,6 +77,16 @@ def check_and_log_ram_budget(
         raise err
 
 
+# Import dashboard and exporter helpers after GLOBAL_TELEMETRY_LOGGER is defined
+from modules.telemetry.dashboard import (
+    compile_health_snapshot,
+    render_cli_dashboard
+)
+from modules.telemetry.telemetry_exporter import (
+    export_telemetry_json,
+    export_telemetry_csv
+)
+
 __all__ = [
     "profile_execution",
     "enforce_ram_budget",
@@ -102,5 +94,11 @@ __all__ = [
     "TelemetryRingLogger",
     "GLOBAL_TELEMETRY_LOGGER",
     "auto_log_telemetry",
-    "check_and_log_ram_budget"
+    "check_and_log_ram_budget",
+    "reclaim_memory",
+    "estimate_big_o",
+    "compile_health_snapshot",
+    "render_cli_dashboard",
+    "export_telemetry_json",
+    "export_telemetry_csv"
 ]
